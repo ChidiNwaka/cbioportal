@@ -424,4 +424,31 @@ INSERT INTO reference_genome_gene (ENTREZ_GENE_ID, CYTOBAND, EXONIC_LENGTH, CHR,
 FROM `gene`);
 
 UPDATE info SET DB_SCHEMA_VERSION="2.4.1";
--- ========================= end of reference genes related tables ========================================================================
+-- ========================= end of reference genes related tables =====================================================
+
+##version: 2.4.2
+-- ================== new reference genome foreign key in mutation_event and genetic_profile tables   ==================
+ALTER TABLE `mutation_event` ADD COLUMN `REFERENCE_GENOME_ID` INT(4) NULL AFTER `ENTREZ_GENE_ID`;
+ALTER TABLE `mutation_event`
+    ADD FOREIGN KEY (`REFERENCE_GENOME_ID`) REFERENCES `reference_genome` (`REFERENCE_GENOME_ID`) ON DELETE CASCADE;
+
+UPDATE `mutation_event` set REFERENCE_GENOME_ID = 1 WHERE NCBI_BUILD in ('hg19', 'GRCh37','37');
+UPDATE `mutation_event` set REFERENCE_GENOME_ID = 2 WHERE NCBI_BUILD in ('hg38', 'GRCh38');
+UPDATE `mutation_event` set REFERENCE_GENOME_ID = 3 WHERE NCBI_BUILD in ('mm10', 'GRCm38');
+
+ALTER TABLE `mutation_event` DROP COLUMN `NCBI_BUILD`;
+
+ALTER TABLE `genetic_profile` ADD COLUMN `REFERENCE_GENOME_ID` INT(4) NULL AFTER `CANCER_STUDY_ID`;
+ALTER TABLE `genetic_profile`
+    ADD FOREIGN KEY (`REFERENCE_GENOME_ID`) REFERENCES `reference_genome` (`REFERENCE_GENOME_ID`) ON DELETE CASCADE;
+
+UPDATE `genetic_profile`
+    INNER JOIN `mutation`
+        ON `mutation`.`GENETIC_PROFILE_ID` = `genetic_profile`.`GENETIC_PROFILE_ID`
+           AND `genetic_profile`.`GENETIC_ALTERATION_TYPE` = 'MUTATION_EXTENDED'
+    INNER JOIN `mutation_event`
+        ON `mutation`.`MUTATION_EVENT_ID` = `mutation_event`.`MUTATION_EVENT_ID`
+SET `genetic_profile`.`REFERENCE_GENOME_ID`=`mutation_event`.`REFERENCE_GENOME_ID`;
+
+UPDATE info SET DB_SCHEMA_VERSION="2.4.2";
+-- ================ end of new reference genome foreign key in mutation_event and genetic_profile tables ===============
